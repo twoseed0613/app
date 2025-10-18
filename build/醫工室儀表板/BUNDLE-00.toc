@@ -1,0 +1,1 @@
+([('醫工室儀表板', '/Users/cloud_chih/Documents/VS Code/dist/醫工室儀表板', 'EXECUTABLE')],)
