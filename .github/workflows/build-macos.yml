@@ -1,9 +1,10 @@
 name: Build macOS App
 
+# 這一段很重要，告訴 GitHub 什麼時候執行
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch:  # 允許手動啟動（很實用）
 
 jobs:
   build:
@@ -23,17 +24,13 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Build macOS Application (.app bundle)
+      - name: Build executable
         run: |
           pip install pyinstaller
-          # 使用 --onedir 和 --windowed 參數來建立一個標準的 .app 應用程式包
-          # 如果 app.py 是一個 GUI 程式 (例如 Tkinter/PyQt)，應使用 --windowed
-          # dist/app.app 將是一個完整的應用程式資料夾
-          pyinstaller --onedir --windowed app.py
+          pyinstaller --onefile run_streamlit.py
 
-      - name: Rename and Upload Artifact (.app)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          # 將路徑指向 PyInstaller 建立的 .app 應用程式目錄
-          name: macos-app-bundle
-          path: dist/app.app
+          name: macos-app
+          path: dist/app
