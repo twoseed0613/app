@@ -5,18 +5,10 @@ import plotly.express as px
 import ssl
 import datetime
 import sys
-import subprocess # 導入 subprocess 用於外部啟動 CLI
+import subprocess
 
-# ===== 啟動控制：信標文件設定 (修正 1) =====
-SENTINEL_FILENAME = ".streamlit_launched"
-
-# 確保信標文件始終位於腳本的同級目錄或可執行文件的目錄，這是 PyInstaller 環境中最穩定的做法。
-if hasattr(sys, '_MEIPASS'):
-    # PyInstaller 環境：使用可執行文件所在的目錄 (通常更可靠)
-    SENTINEL_FILE_PATH = os.path.join(os.path.dirname(sys.executable), SENTINEL_FILENAME)
-else:
-    # 標準 Python 環境：使用腳本目錄
-    SENTINEL_FILE_PATH = os.path.join(os.path.dirname(sys.argv[0]), SENTINEL_FILENAME)
+# ===== 啟動控制：環境變數設定 (修正核心) =====
+LAUNCHED_ENV_VAR = "APP_LAUNCHED_FLAG"
 
 # 忽略 SSL 憑證驗證錯誤
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -622,37 +614,35 @@ def run_streamlit_app():
         st.dataframe(合約清單, use_container_width=True, hide_index=True)
 
 
-# 【關鍵修正】: 使用信標文件絕對路徑 + Streamlit Headless 模式控制啟動。
+# 【關鍵修正】: 改用環境變數檢查，避免多重啟動
 if __name__ == "__main__":
-    # 檢查信標文件是否存在
-    if os.path.exists(SENTINEL_FILE_PATH):
-        # 情況 1: 信標文件存在，表示 Streamlit 伺服器已啟動。
-        # 執行應用程式
+    # 檢查是否已經設定了啟動標誌
+    if os.environ.get(LAUNCHED_ENV_VAR) == "1":
+        # 情況 1: 標誌已設定，表示這是 Streamlit 伺服器進程或重啟。
         run_streamlit_app()
     else:
-        # 情況 2: 信標文件不存在，表示這是 PyInstaller 打包後的 **首次啟動**。
+        # 情況 2: 標誌未設定，表示這是 PyInstaller 打包後的 **首次啟動**。
         try:
-            # 1. 立即創建信標文件，確保文件被寫入和關閉。
-            with open(SENTINEL_FILE_PATH, 'w') as f:
-                f.write('Launched')
+            # 1. 在當前環境中設定標誌，這將繼承給子進程。
+            os.environ[LAUNCHED_ENV_VAR] = "1"
 
             # 2. 啟動瀏覽器 (Timer 延遲 1.0 秒)
             threading.Timer(1.0, lambda: webbrowser.open_new("http://localhost:8501")).start()
             
-            # 3. 啟動 Streamlit CLI 伺服器 (使用 subprocess)
+            # 3. 啟動 Streamlit CLI 伺服器
             script_path = os.path.abspath(sys.argv[0])
             
-            # 修正 2: 加入 --server.headless=True 確保 Streamlit 不會自己啟動瀏覽器
+            # 確保 Streamlit 不會自己啟動瀏覽器
             command = [
                 sys.executable, 
                 "-m", 
                 "streamlit", 
                 "run", 
                 script_path,
-                "--server.headless=True" # 告訴 Streamlit 不要開啟瀏覽器
+                "--server.headless=True" 
             ]
             
-            # 使用 Popen 啟動 Streamlit 服務器，並讓當前進程退出。
+            # 啟動 Streamlit 服務器。子進程將繼承環境變數 LAUNCHED_ENV_VAR="1"
             subprocess.Popen(command)
             
             # 4. 立即退出初始進程，讓 Streamlit 伺服器接管控制。
