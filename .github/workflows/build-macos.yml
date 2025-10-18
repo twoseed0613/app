@@ -1,0 +1,36 @@
+name: Build macOS App
+
+# 這一段很重要，告訴 GitHub 什麼時候執行
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # 允許手動啟動（很實用）
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Build executable
+        run: |
+          pip install pyinstaller
+          pyinstaller --onefile app.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-app
+          path: dist/app
