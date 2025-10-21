@@ -26,18 +26,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if exist requirements.txt pip install -r requirements.txt
-          pip install pyinstaller
+          pip install --upgrade pyinstaller
 
-      # 4️⃣ 建立 EXE
+      # 4️⃣ 建立 EXE（自動偵測圖示，加入 debug）
       - name: Build EXE
         run: |
+          echo "Start PyInstaller build..."
           if exist app.ico (
-            pyinstaller --onefile --noconsole --icon=app.ico app.py
+            echo "Using app.ico for EXE icon"
+            pyinstaller --onefile --noconsole --icon=app.ico --log-level=DEBUG app.py
           ) else (
-            pyinstaller --onefile --noconsole app.py
+            echo "No app.ico found, building without icon"
+            pyinstaller --onefile --noconsole --log-level=DEBUG app.py
           )
+          echo "PyInstaller build finished"
 
-      # 5️⃣ 上傳 EXE artifact
+      # 5️⃣ 列出 dist 資料夾檔案，方便確認
+      - name: List dist folder
+        run: dir dist
+
+      # 6️⃣ 上傳 EXE artifact（使用最新 v4）
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
