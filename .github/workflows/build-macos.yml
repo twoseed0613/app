@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows EXE (Streamlit-friendly)
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ 設定 Python 環境
+      # 2️⃣ 安裝 Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -28,27 +28,32 @@ jobs:
           if exist requirements.txt pip install -r requirements.txt
           pip install --upgrade pyinstaller
 
-      # 4️⃣ 建立 EXE（自動偵測圖示，加入 debug）
+      # 4️⃣ 建立 EXE（使用 onedir 模式，支援資源資料夾）
       - name: Build EXE
         run: |
           echo "Start PyInstaller build..."
-          if exist app.ico (
-            echo "Using app.ico for EXE icon"
-            pyinstaller --onefile --noconsole --icon=app.ico --log-level=DEBUG app.py
+          set RESOURCE_DIR=resources  # 假設你有一個 resources 資料夾放 images/data 等
+          if exist %RESOURCE_DIR% (
+            set ADD_DATA="resources;resources"
           ) else (
-            echo "No app.ico found, building without icon"
-            pyinstaller --onefile --noconsole --log-level=DEBUG app.py
+            set ADD_DATA=
+          )
+
+          if exist app.ico (
+            pyinstaller --noconsole --onedir --log-level=DEBUG --icon=app.ico %ADD_DATA% app.py
+          ) else (
+            pyinstaller --noconsole --onedir --log-level=DEBUG %ADD_DATA% app.py
           )
           echo "PyInstaller build finished"
 
-      # 5️⃣ 列出 dist 資料夾檔案，方便確認
+      # 5️⃣ 列出 dist 資料夾檔案
       - name: List dist folder
         run: dir dist
 
-      # 6️⃣ 上傳 EXE artifact（使用最新 v4）
+      # 6️⃣ 上傳 EXE artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
-          path: dist/app.exe
+          path: dist/app
           retention-days: 90
